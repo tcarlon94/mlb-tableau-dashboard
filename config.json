@@ -1,0 +1,23 @@
+{
+  "pipeline": {
+    "date_offset": -1,
+    "description": "Number of days to look back. -1 = yesterday, 0 = today"
+  },
+  "api": {
+    "max_workers": 10,
+    "timeout": 30,
+    "max_retries": 3,
+    "backoff_factor": 1.5
+  },
+  "database": {
+    "teams_table": "DIM.TEAMS",
+    "games_table": "RAW.GAMES",
+    "players_table": "DIM.PLAYERS",
+    "batting_table": "RAW.PLAYER_GAME_BATTING",
+    "pitching_table": "RAW.PLAYER_GAME_PITCHING"
+  },
+  "logging": {
+    "level": "INFO",
+    "log_file": "logs/pipeline.log"
+  }
+}
