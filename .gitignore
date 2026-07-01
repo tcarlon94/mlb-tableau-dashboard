@@ -53,3 +53,5 @@ Thumbs.db
 tableau/
 *.csv
 *.xlsx
+*.p8
+*.pub

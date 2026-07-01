@@ -4,6 +4,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 BASE_URL = "https://statsapi.mlb.com/api/v1"
+LIVE_FEED_BASE_URL = "https://statsapi.mlb.com/api/v1.1"
 
 def _get_session(max_retries=3, backoff_factor=1.5):
     """Create a requests session with retry strategy."""
@@ -34,6 +35,14 @@ def get_schedule(date_str: str) -> dict:
 #get boxscore for a given game id
 def get_boxscore(game_pk: int) -> dict:
     url = f"{BASE_URL}/game/{game_pk}/boxscore"
+    session = _get_session()
+    response = session.get(url, timeout=30)
+    response.raise_for_status()
+    return response.json()
+
+#get live feed for a given game id
+def get_live_feed(game_pk: int) -> dict:
+    url = f"{LIVE_FEED_BASE_URL}/game/{game_pk}/feed/live"
     session = _get_session()
     response = session.get(url, timeout=30)
     response.raise_for_status()

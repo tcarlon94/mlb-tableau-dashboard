@@ -91,6 +91,16 @@ def parse_schedule_to_games(schedule_json: dict) -> pd.DataFrame:
 
     return pd.DataFrame(rows)
 
+# Parse game-level pitcher decisions from live feed JSON
+def parse_live_feed_decisions(live_feed_json: dict, game_id: int) -> dict:
+    decisions = live_feed_json.get("liveData", {}).get("decisions", {})
+    return {
+        "game_id": game_id,
+        "winning_pitcher_id": decisions.get("winner", {}).get("id"),
+        "losing_pitcher_id": decisions.get("loser", {}).get("id"),
+        "save_pitcher_id": decisions.get("save", {}).get("id"),
+    }
+
 # Parse function to transform boxscore JSON to players DataFrame
 def parse_boxscore_players(boxscore_json: dict) -> pd.DataFrame:
     rows = []

@@ -1,13 +1,15 @@
+import argparse
 import pandas as pd
 import logging
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 from pathlib import Path
 
-from extract import get_schedule, get_boxscore, get_teams
+from extract import get_schedule, get_boxscore, get_live_feed, get_teams
 from transform import (
     parse_teams,
     parse_schedule_to_games,
+    parse_live_feed_decisions,
     parse_boxscore_players,
     parse_boxscore_batting,
     parse_boxscore_pitching,
@@ -61,10 +63,11 @@ def run_for_date(date_str: str = None):
 
         logger.info(f"Found {len(games_df)} games for {date_str}")
 
-        # 3. Build player, batting, pitching DataFrames across all games
+        # 3. Build player, batting, pitching, and game decision data across all games
         all_players = []
         all_batting = []
         all_pitching = []
+        all_game_decisions = []
 
         for _, game_row in games_df.iterrows():
             game_id = int(game_row["game_id"])
@@ -73,11 +76,14 @@ def run_for_date(date_str: str = None):
 
             logger.info(f"Processing game {game_id}")
             boxscore_json = get_boxscore(game_id)
+            live_feed_json = get_live_feed(game_id)
 
             players_df = parse_boxscore_players(boxscore_json)
             batting_df = parse_boxscore_batting(boxscore_json, game_id, game_date, season)
             pitching_df = parse_boxscore_pitching(boxscore_json, game_id, game_date, season)
+            decision_row = parse_live_feed_decisions(live_feed_json, game_id)
 
+            all_game_decisions.append(decision_row)
             if not players_df.empty:
                 all_players.append(players_df)
             if not batting_df.empty:
@@ -88,6 +94,10 @@ def run_for_date(date_str: str = None):
         players_df = pd.concat(all_players, ignore_index=True).drop_duplicates(subset=["player_id"]) if all_players else pd.DataFrame()
         batting_df = pd.concat(all_batting, ignore_index=True) if all_batting else pd.DataFrame()
         pitching_df = pd.concat(all_pitching, ignore_index=True) if all_pitching else pd.DataFrame()
+        decisions_df = pd.DataFrame(all_game_decisions) if all_game_decisions else pd.DataFrame()
+
+        if not decisions_df.empty:
+            games_df = games_df.merge(decisions_df, on="game_id", how="left")
 
         conn = get_connection()
         try:
@@ -106,5 +116,49 @@ def run_for_date(date_str: str = None):
         raise
 
 
+def get_loaded_game_dates(conn, games_table: str, start_date: date, end_date: date):
+    cursor = conn.cursor()
+    try:
+        sql = f"SELECT DISTINCT GAME_DATE FROM {games_table} WHERE GAME_DATE BETWEEN %s AND %s"
+        cursor.execute(sql, (start_date, end_date))
+        return {row[0] for row in cursor.fetchall()}
+    finally:
+        cursor.close()
+
+
+def run_date_range(start_date: str, end_date: str = None, refresh_only: bool = False):
+    """Run the pipeline for every date in a range, optionally skipping dates already loaded."""
+    start = date.fromisoformat(start_date)
+    end = date.fromisoformat(end_date) if end_date else start
+    if end < start:
+        raise ValueError("end_date must be the same as or after start_date")
+
+    loaded_dates = set()
+    if refresh_only:
+        conn = get_connection()
+        try:
+            loaded_dates = get_loaded_game_dates(conn, config["database"]["games_table"], start, end)
+        finally:
+            conn.close()
+
+    current = start
+    while current <= end:
+        if refresh_only and current in loaded_dates:
+            logger.info(f"Skipping already loaded date: {current.isoformat()}")
+        else:
+            logger.info(f"Backfill run for date: {current.isoformat()}")
+            run_for_date(current.isoformat())
+        current += timedelta(days=1)
+
+
 if __name__ == "__main__":
-    run_for_date()
+    parser = argparse.ArgumentParser(description="Run the MLB pipeline for a date or date range.")
+    parser.add_argument("--start-date", dest="start_date", help="Start date for pipeline run (YYYY-MM-DD)")
+    parser.add_argument("--end-date", dest="end_date", help="End date for pipeline run (YYYY-MM-DD). If omitted, runs only the start date.")
+    parser.add_argument("--refresh-only", dest="refresh_only", action="store_true", help="Only run dates that are not already present in the games table.")
+    args = parser.parse_args()
+
+    if args.start_date:
+        run_date_range(args.start_date, args.end_date, refresh_only=args.refresh_only)
+    else:
+        run_for_date()
