@@ -101,6 +101,55 @@ def parse_live_feed_decisions(live_feed_json: dict, game_id: int) -> dict:
         "save_pitcher_id": decisions.get("save", {}).get("id"),
     }
 
+# Helper functions for type conversion and innings pitched parsing
+def _to_int(value):
+    if value in [None, "", ""]:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_float(value):
+    if value in [None, "", ""]:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _ip_to_float(ip_value):
+    """
+    Converts baseball innings notation:
+    5.0 -> 5.0
+    5.1 -> 5 + 1/3
+    5.2 -> 5 + 2/3
+    """
+    if ip_value in [None, ""]:
+        return None
+
+    try:
+        text = str(ip_value)
+        if "." not in text:
+            return float(text)
+
+        whole, frac = text.split(".")
+        whole = int(whole)
+        frac = int(frac)
+
+        if frac == 0:
+            return float(whole)
+        if frac == 1:
+            return whole + (1 / 3)
+        if frac == 2:
+            return whole + (2 / 3)
+
+        return float(text)
+    except (TypeError, ValueError):
+        return None
+
 # Parse function to transform boxscore JSON to players DataFrame
 def parse_boxscore_players(boxscore_json: dict) -> pd.DataFrame:
     rows = []
@@ -260,52 +309,3 @@ def parse_boxscore_pitching(boxscore_json: dict, game_id: int, game_date: str, s
     df = pd.DataFrame(rows)
     print("pitching rows created:", len(df))
     return df
-
-# Helper functions for type conversion and innings pitched parsing
-def _to_int(value):
-    if value in [None, "", ""]:
-        return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _to_float(value):
-    if value in [None, "", ""]:
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _ip_to_float(ip_value):
-    """
-    Converts baseball innings notation:
-    5.0 -> 5.0
-    5.1 -> 5 + 1/3
-    5.2 -> 5 + 2/3
-    """
-    if ip_value in [None, ""]:
-        return None
-
-    try:
-        text = str(ip_value)
-        if "." not in text:
-            return float(text)
-
-        whole, frac = text.split(".")
-        whole = int(whole)
-        frac = int(frac)
-
-        if frac == 0:
-            return float(whole)
-        if frac == 1:
-            return whole + (1 / 3)
-        if frac == 2:
-            return whole + (2 / 3)
-
-        return float(text)
-    except (TypeError, ValueError):
-        return None

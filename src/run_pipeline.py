@@ -14,7 +14,7 @@ from transform import (
     parse_boxscore_batting,
     parse_boxscore_pitching,
 )
-from load import get_connection, insert_dataframe
+from load import get_connection, upsert_dataframe
 
 # Load configuration
 config_path = Path(__file__).parent.parent / "config.json"
@@ -101,12 +101,12 @@ def run_for_date(date_str: str = None):
 
         conn = get_connection()
         try:
-            logger.info("Loading data into Snowflake...")
-            insert_dataframe(conn, config["database"]["teams_table"], teams_df)
-            insert_dataframe(conn, config["database"]["games_table"], games_df)
-            insert_dataframe(conn, config["database"]["players_table"], players_df)
-            insert_dataframe(conn, config["database"]["batting_table"], batting_df)
-            insert_dataframe(conn, config["database"]["pitching_table"], pitching_df)
+            logger.info("Loading data into Snowflake (upsert)...")
+            upsert_dataframe(conn, config["database"]["teams_table"], teams_df)
+            upsert_dataframe(conn, config["database"]["games_table"], games_df)
+            upsert_dataframe(conn, config["database"]["players_table"], players_df)
+            upsert_dataframe(conn, config["database"]["batting_table"], batting_df)
+            upsert_dataframe(conn, config["database"]["pitching_table"], pitching_df)
             logger.info("Pipeline completed successfully!")
         finally:
             conn.close()
