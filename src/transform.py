@@ -269,18 +269,9 @@ def parse_boxscore_pitching(boxscore_json: dict, game_id: int, game_date: str, s
         team_id = team_data.get("team", {}).get("id")
         opponent_team_id = away_team_id if side == "home" else home_team_id
 
-        print(f"\n--- {side.upper()} TEAM {team_id} ---")
-
         for player_key, player_data in team_data.get("players", {}).items():
             person = player_data.get("person", {})
             stats = player_data.get("stats", {}).get("pitching", {})
-
-            print(
-                "player:",
-                person.get("fullName"),
-                "| pitching stats keys:",
-                list(stats.keys()) if stats else "NO PITCHING STATS"
-            )
 
             if not stats:
                 continue
@@ -306,6 +297,4 @@ def parse_boxscore_pitching(boxscore_json: dict, game_id: int, game_date: str, s
                 "whip": _to_float(stats.get("whip")),
             })
 
-    df = pd.DataFrame(rows)
-    print("pitching rows created:", len(df))
-    return df
+    return pd.DataFrame(rows)

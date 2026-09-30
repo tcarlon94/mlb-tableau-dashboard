@@ -2,3 +2,6 @@ pandas
 requests
 snowflake-connector-python
 python-dotenv
+gspread
+google-auth
+pytest
